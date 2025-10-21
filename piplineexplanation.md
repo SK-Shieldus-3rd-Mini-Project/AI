@@ -15,3 +15,26 @@
 4. 답변 생성 (출처 포함)
    ↓
 5. Spring Boot로 응답 반환
+
+
+[사용자 질문] (React → Spring Boot)
+    ↓
+[FastAPI: POST /api/ai/query]
+    ↓
+[질문 분류] (chains/classifier.py)
+    ↓
+┌─────────┬────────────┬─────────────┬──────────┐
+│economic │stock_price │analyst_     │general   │
+│indicator│            │report       │          │
+└────┬────┴─────┬──────┴──────┬──────┴────┬─────┘
+     │          │             │           │
+     ↓          ↓             ↓           ↓
+  [DB조회]  [API조회]    [RAG검색]   [LLM직접]
+  indicator  stock_      rag_chain   general_
+  _chain.py  chain.py    .py         chain.py
+     │          │             │           │
+     └──────────┴─────────────┴───────────┘
+                    ↓
+            [답변 + 출처 생성]
+                    ↓
+        [JSON 응답 → Spring Boot]
