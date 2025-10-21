@@ -22,7 +22,7 @@ from chains.general_chain import query_general_advice
 # FastAPI 앱 초기화
 app = FastAPI(
     title="전봉준 AI 투자 어드바이저 API",
-    description="LangChain + RAG 기반 투자 상담 API",
+    description="CHATBOT 기반 투자 상담 API",
     version="1.0.0"
 )
 
