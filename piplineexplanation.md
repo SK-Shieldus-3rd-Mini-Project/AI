@@ -1,3 +1,37 @@
+AI/
+├── data/
+│   ├── reports/                  # 증권사 리포트 PDF
+│   ├── news/                     # 뉴스 데이터
+│   └── indicators/               # 경제지표 CSV
+├── embeddings/
+│   └── chromadb/                 # 벡터 DB
+├── chains/
+│   ├── __init__.py
+│   ├── classifier.py             # 질문 분류
+│   ├── rag_chain.py              # RAG 체인
+│   ├── indicator_chain.py        # 경제지표 체인
+│   ├── stock_chain.py            # 주가 분석 체인
+│   └── general_chain.py          # 일반 상담 체인
+├── utils/
+│   ├── __init__.py
+│   ├── config.py                 # 환경 설정
+│   ├── logger.py                 # 로깅
+│   ├── embedder.py               # 임베딩
+│   ├── db_client.py              # ChromaDB
+│   ├── data_loader.py            # 문서 로딩
+│   └── text_splitter.py          # 텍스트 분할
+├── notebooks/
+│   ├── 01_data_preparation.ipynb
+│   └── 02_rag_test.ipynb
+├── main.py                       # FastAPI 서버
+├── requirements.txt
+├── .env
+└── README.md
+
+
+
+
+
 1. 사용자 질문 입력 (React → Spring Boot → FastAPI)
    ↓
 2. 질문 분류 (Classifier Chain)
