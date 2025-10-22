@@ -29,3 +29,7 @@ python-multipart==0.0.9
 # Jupyter (실험용)
 notebook==7.0.8
 ipykernel==6.29.0
+
+#시세 데이터 (테스트)
+pykrx
+pandas
