@@ -22,9 +22,12 @@ from chains.indicator_chain import query_economic_indicator
 from chains.stock_chain import query_stock_analysis
 from chains.general_chain import query_general_advice
 from chains.sentiment_analyzer import SentimentAnalyzer
-sentiment_analyzer = SentimentAnalyzer()
 from chains.user_stocks_chain import UserStocksChain
+
+# 인스턴스 생성
+sentiment_analyzer = SentimentAnalyzer()
 user_stocks_chain = UserStocksChain()
+
 # FastAPI 앱 초기화
 app = FastAPI(
     title="전봉준 AI 투자 어드바이저 API",
@@ -42,6 +45,10 @@ app.add_middleware(
 )
 
 # ===== 요청/응답 모델 =====
+
+class UserRequest(BaseModel):
+    """사용자 정보 요청 모델"""
+    user_id: str
 
 class QueryRequest(BaseModel):
     """질문 요청 모델"""
@@ -65,6 +72,12 @@ class QueryResponse(BaseModel):
     sources: List[Dict]  # 출처 리스트
     timestamp: str
 
+class StocksResponse(BaseModel):
+    """보유 종목 응답 모델"""
+    success: bool
+    user_id: str
+    data: Dict
+
 # ===== API 엔드포인트 =====
 
 @app.get("/health")
@@ -76,29 +89,43 @@ async def health_check():
         "version": "1.0.0",
         "timestamp": datetime.now().isoformat()
     }
-@app.post("/api/ai/my-stocks")
-async def get_my_stocks(request: dict):
+
+@app.post("/api/ai/my-stocks", response_model=StocksResponse)
+async def get_my_stocks(request: UserRequest):
     """
-    사용자 최근 추가 종목 + 상세정보 조회 API
+    사용자 보유 종목 조회 API
+    - DB에서 USER_PORTFOLIO 기반 보유 종목 조회
+    - yfinance로 실시간 주가 정보 추가
+    - LLM으로 자연어 요약 생성
     """
-    user_id = request.get("user_id", "default_user")
-    
-    result = user_stocks_chain.get_user_stocks(user_id)
-    
-    return {
-        "user_id": user_id,
-        "stocks": result["stocks"],
-        "summary": result["summary"]
-    }
+    try:
+        logger.info(f"[{request.user_id}] 보유 종목 조회 요청")
+        
+        # user_stocks_chain에서 데이터 조회
+        result = user_stocks_chain.get_user_stocks(request.user_id)
+        
+        logger.info(f"[{request.user_id}] 보유 종목 조회 완료")
+        
+        return {
+            "success": True,
+            "user_id": request.user_id,
+            "data": {
+                "stocks": result["stocks"],
+                "summary": result["summary"]
+            }
+        }
+    except Exception as e:
+        logger.error(f"[{request.user_id}] 보유 종목 조회 오류: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/ai/query", response_model=QueryResponse)
 async def query_ai(request: QueryRequest):
     """
     AI 질문 처리 메인 엔드포인트
-      1. 질문 분류
-      2. 카테고리별 처리(답변, 출처)
-      3. 긍정/부정 의견 추출
-      4. 응답 반환
+    1. 질문 분류
+    2. 카테고리별 처리(답변, 출처)
+    3. 긍정/부정 의견 추출
+    4. 응답 반환
     """
     try:
         logger.info(f"[{request.session_id}] 질문 수신: {request.question}")
@@ -115,11 +142,6 @@ async def query_ai(request: QueryRequest):
             result = query_rag(request.question)
             answer = result["answer"]
             sources = result["sources"]
-        elif category == "user_stocks":  # 👈 '내 종목', '최근 추가' 등 분류된 경우
-            result = user_stocks_chain.get_user_stocks(request.session_id)
-            answer = result["summary"]
-            stocks = result["stocks"]
-            sources = []
 
         elif category == "economic_indicator":
             indicator_data = {
