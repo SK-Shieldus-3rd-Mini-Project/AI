@@ -21,6 +21,7 @@ from chains.general_chain import query_general_advice
 
 # pykrx API 추가
 from pykrx import stock
+import pandas as pd
 
 # FastAPI 앱 초기화
 app = FastAPI(
@@ -150,14 +151,12 @@ async def query_ai(request: QueryRequest):
 def get_latest_trading_day_str():
     """가장 최근 거래일을 YYYYMMDD 문자열로 반환하는 헬퍼 함수"""
     today = datetime.now()
-    # 장 마감(15:30) 이전이면 어제를 기준으로 함 (데이터 안정성)
     if today.hour < 15 or (today.hour == 15 and today.minute < 30):
         today = today - timedelta(days=1)
     
-    # 주말 처리
-    if today.weekday() == 5: # 토요일
+    if today.weekday() == 5: 
         today = today - timedelta(days=1)
-    elif today.weekday() == 6: # 일요일
+    elif today.weekday() == 6: 
         today = today - timedelta(days=2)
         
     while True:
@@ -171,39 +170,43 @@ def get_latest_trading_day_str():
 async def get_indices():
     try:
         logger.info("시장 지수 데이터 요청 수신")
-        today = datetime.now().strftime('%Y%m%d')
+        today_str = datetime.now().strftime('%Y%m%d')
+        # 최근 5일치 데이터를 여유롭게 가져옴
+        start_date = (datetime.now() - timedelta(days=5)).strftime('%Y%m%d')
         
         response = {}
         
         for index_name, index_code in [("kospi", "1001"), ("kosdaq", "2001")]:
             try:
-                df = stock.get_index_ohlcv(today, today, index_code, "m")
+                df_daily = stock.get_index_ohlcv(start_date, today_str, index_code, "d")
+                previous_close = df_daily.iloc[-2]['종가']
+                df_minute = stock.get_index_ohlcv(today_str, today_str, index_code, "m")
                 
-                if df.empty:
-                    raise ValueError("Minute data is empty, trying daily data.")
+                if df_minute.empty:
+                    raise ValueError("Minute data is empty, using daily data as fallback.")
 
-                latest_data = df.iloc[-1]
+                latest_price = df_minute.iloc[-1]['종가']
                 
                 chart_data = [{'time': time.strftime('%H:%M'), 'value': row['종가']}
-                              for time, row in df.iterrows()]
+                              for time, row in df_minute.iterrows()]
                 
                 latest_info = {
-                    "value": round(latest_data['종가'], 2),
-                    "changeValue": round(latest_data['종가'] - df.iloc[0]['시가'], 2), # 당일 시가 대비
-                    "changeRate": round((latest_data['종가'] / df.iloc[0]['시가'] - 1) * 100, 2)
+                    "value": round(latest_price, 2),
+                    "changeValue": round(latest_price - previous_close, 2),
+                    "changeRate": round((latest_price / previous_close - 1) * 100, 2)
                 }
 
             except Exception as e:
-                logger.warning(f"{index_name} 분봉 데이터 조회 실패, 일봉 데이터로 대체합니다. 원인: {e}")
-                df = stock.get_index_ohlcv("20240101", today, index_code, "d").tail(1)
-                latest_data = df.iloc[0]
+                logger.warning(f"{index_name} 분봉 데이터 조회 실패, 최신 일봉으로 대체합니다. 원인: {e}")
+                df_daily_fallback = stock.get_index_ohlcv(start_date, today_str, index_code, "d").tail(1)
+                latest_daily_data = df_daily_fallback.iloc[0]
                 
                 chart_data = []
                 
                 latest_info = {
-                    "value": round(latest_data['종가'], 2),
-                    "changeValue": round(latest_data['변동폭'], 2),
-                    "changeRate": round(latest_data['등락률'], 2)
+                    "value": round(latest_daily_data['종가'], 2),
+                    "changeValue": round(latest_daily_data['변동폭'], 2),
+                    "changeRate": round(latest_daily_data['등락률'], 2)
                 }
 
             response[index_name] = {**latest_info, "chartData": chart_data}
@@ -217,14 +220,20 @@ async def get_indices():
 
 @app.get("/api/top-gainers")
 async def get_top_gainers():
-    """상승률 상위 5개 종목 반환 (안정적인 방식으로 변경)"""
+    """상승률 상위 5개 종목 반환 (오늘 실시간 데이터)"""
     try:
-        latest_day = get_latest_trading_day_str()
-        df = stock.get_market_ohlcv(latest_day, market="ALL")
+        today_str = datetime.now().strftime("%Y%m%d")
+        df = stock.get_market_ohlcv(today_str, market="ALL")
         top_5 = df.sort_values(by='등락률', ascending=False).head(5)
         
-        result = [{"code": ticker, "name": stock.get_market_ticker_name(ticker), "change_rate": round(row['등락률'], 2)} 
-                  for ticker, row in top_5.iterrows()]
+        result = []
+        for ticker, row in top_5.iterrows():
+            result.append({
+                "code": ticker,
+                "name": stock.get_market_ticker_name(ticker),
+                "price": row['종가'], 
+                "change_rate": round(row['등락률'], 2)
+            })
         return result
     except Exception as e:
         logger.error(f"상승률 상위 조회 중 오류: {e}")
@@ -232,14 +241,20 @@ async def get_top_gainers():
 
 @app.get("/api/top-losers")
 async def get_top_losers():
-    """하락률 상위 5개 종목 반환 (안정적인 방식으로 변경)"""
+    """하락률 상위 5개 종목 반환 (오늘 실시간 데이터)"""
     try:
-        latest_day = get_latest_trading_day_str()
-        df = stock.get_market_ohlcv(latest_day, market="ALL")
+        today_str = datetime.now().strftime("%Y%m%d")
+        df = stock.get_market_ohlcv(today_str, market="ALL")
         top_5 = df.sort_values(by='등락률', ascending=True).head(5)
         
-        result = [{"code": ticker, "name": stock.get_market_ticker_name(ticker), "change_rate": round(row['등락률'], 2)}
-                  for ticker, row in top_5.iterrows()]
+        result = []
+        for ticker, row in top_5.iterrows():
+            result.append({
+                "code": ticker,
+                "name": stock.get_market_ticker_name(ticker),
+                "price": row['종가'],
+                "change_rate": round(row['등락률'], 2)
+            })
         return result
     except Exception as e:
         logger.error(f"하락률 상위 조회 중 오류: {e}")
@@ -247,17 +262,49 @@ async def get_top_losers():
 
 @app.get("/api/top-volume")
 async def get_top_volume():
-    """거래량 상위 5개 종목 반환 (안정적인 방식으로 변경)"""
+    """거래량 상위 5개 종목 반환 (오늘 실시간 데이터)"""
     try:
-        latest_day = get_latest_trading_day_str()
-        df = stock.get_market_ohlcv(latest_day, market="ALL")
+        today_str = datetime.now().strftime("%Y%m%d")
+        
+        df = stock.get_market_ohlcv(today_str, market="ALL")
         top_5 = df.sort_values(by='거래량', ascending=False).head(5)
         
-        result = [{"code": ticker, "name": stock.get_market_ticker_name(ticker), "volume": row['거래량']}
-                  for ticker, row in top_5.iterrows()]
+        result = []
+        for ticker, row in top_5.iterrows():
+            result.append({
+                "code": ticker,
+                "name": stock.get_market_ticker_name(ticker),
+                "volume": row['거래량']
+            })
         return result
     except Exception as e:
         logger.error(f"거래량 상위 조회 중 오류: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+    
+@app.get("/api/top-market-cap")
+async def get_top_market_cap():
+    """시가총액 상위 10개 종목의 시세 정보를 반환"""
+    try:
+        latest_day = get_latest_trading_day_str()
+        
+        df_cap = stock.get_market_cap(latest_day, market="ALL")
+        top_10_tickers = df_cap.sort_values(by='시가총액', ascending=False).head(10).index.tolist()
+        
+        result = []
+        for ticker in top_10_tickers:
+            df_ohlcv = stock.get_market_ohlcv(latest_day, latest_day, ticker)
+            
+            if not df_ohlcv.empty:
+                row = df_ohlcv.iloc[0] 
+                result.append({
+                    "code": ticker,
+                    "name": stock.get_market_ticker_name(ticker),
+                    "price": row['종가'],
+                    "change_rate": round(row['등락률'], 2)
+                })
+        return result
+    except Exception as e:
+        logger.error(f"시가총액 상위 조회 중 오류: {e}")
         raise HTTPException(status_code=500, detail=str(e))
     
 # ===== 서버 실행 =====
