@@ -166,7 +166,7 @@ def get_latest_trading_day_str():
         except:
             today = today - timedelta(days=1)
 
-@app.get("/api/indices")
+@app.get("/indices")
 async def get_indices():
     try:
         logger.info("시장 지수 데이터 요청 수신")
@@ -218,7 +218,7 @@ async def get_indices():
         logger.error(f"시장 지수 조회 중 오류 발생: {str(e)}")
         raise HTTPException(status_code=500, detail="시장 지수 데이터를 가져오는 중 오류가 발생했습니다.")
 
-@app.get("/api/top-gainers")
+@app.get("/top-gainers")
 async def get_top_gainers():
     """상승률 상위 5개 종목 반환 (오늘 실시간 데이터)"""
     try:
@@ -239,7 +239,7 @@ async def get_top_gainers():
         logger.error(f"상승률 상위 조회 중 오류: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/api/top-losers")
+@app.get("/top-losers")
 async def get_top_losers():
     """하락률 상위 5개 종목 반환 (오늘 실시간 데이터)"""
     try:
@@ -260,7 +260,7 @@ async def get_top_losers():
         logger.error(f"하락률 상위 조회 중 오류: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/api/top-volume")
+@app.get("/top-volume")
 async def get_top_volume():
     """거래량 상위 5개 종목 반환 (오늘 실시간 데이터)"""
     try:

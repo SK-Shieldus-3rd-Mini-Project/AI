@@ -1,35 +1,42 @@
-# AI Core
-langchain==0.1.20
-langchain-community==0.0.38
-langchain-openai==0.1.0
-openai==1.14.0
-tiktoken==0.6.0
+# requirements.txt (Cleaned)
+
+# Core Web Framework
+fastapi==0.110.0
+uvicorn[standard]==0.27.1 # Includes httptools, websockets, uvloop etc.
+python-multipart==0.0.9 # For potential FastAPI form data
+
+# Data Validation & Settings
+pydantic==2.12.3
+pydantic-settings==2.11.0
+python-dotenv==1.0.1
+
+# LangChain Core & Integrations (Update versions if upgrade resulted in newer ones)
+langchain==0.3.27
+langchain-core==0.3.79
+langchain-community==0.3.31
+langchain-openai==0.3.35
+langchain-text-splitters==0.3.11
+
+# AI Model & Tokenizer
+openai==2.6.0 # Using the version from your latest list; ensure it's compatible
+tiktoken==0.12.0
 
 # Vector Database
 chromadb==0.4.24
 
-# FastAPI
-fastapi==0.110.0
-uvicorn[standard]==0.27.1
-pydantic==2.6.3
-pydantic-settings==2.2.1
+# Data Loading & Parsing (for utils/data_loader.py and pykrx)
+pypdf==4.1.0 # For PyPDFLoader
+lxml # Often needed by pandas/pykrx for HTML/XML parsing
+xlrd==2.0.2 # Needed by pandas/pykrx for older Excel files
 
-# Data Processing
-python-dotenv==1.0.1
-requests==2.31.0
-beautifulsoup4==4.12.3
-pandas==2.2.1
+# Stock Market Data
+pykrx==1.0.51 # For market data APIs
 
-# PDF Processing
-pypdf==4.1.0
-
-# Utils
-python-multipart==0.0.9
-
-# Jupyter (실험용)
-notebook==7.0.8
-ipykernel==6.29.0
-
-#시세 데이터 (테스트)
-pykrx
-pandas
+# Common Dependencies (often needed by the libraries above)
+numpy==1.26.4 # Used by pandas, pykrx, chromadb, langchain
+pandas==2.2.1 # Used by pykrx
+requests==2.32.5 # Used by pykrx, langchain, etc.
+httpx==0.28.1 # Used by OpenAI v1+ client, chromadb, FastAPI test client
+SQLAlchemy==2.0.44 # Potential LangChain dependency for some features
+tenacity==8.5.0 # Used by OpenAI client for retries
+PyYAML==6.0.3 # Common configuration/LangChain dependency
