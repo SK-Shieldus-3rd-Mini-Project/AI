@@ -1,11 +1,9 @@
-from utils.logger import setup_logger
 from langchain_openai import ChatOpenAI
 from langchain.prompts import ChatPromptTemplate
 import os
 
 class SentimentAnalyzer:
     def __init__(self):
-        self.logger = setup_logger(self.__class__.__name__, "logs/app.log")
         self.llm = ChatOpenAI(
             model=os.getenv("OPENAI_MODEL", "gpt-4o-mini"),
             temperature=0.3,
@@ -30,8 +28,6 @@ class SentimentAnalyzer:
     
     def analyze(self, question: str, context: str) -> dict:
         """긍정/부정 의견을 분리 추출"""
-        self.logger.info(f"감정 분석 시작 - 질문: {question}")
-        
         try:
             # 긍정 의견 추출
             positive_chain = self.positive_prompt | self.llm
@@ -49,14 +45,13 @@ class SentimentAnalyzer:
             })
             negative_opinion = negative_result.content
             
-            self.logger.info("감정 분석 완료")
             return {
                 "positive_opinion": positive_opinion,
                 "negative_opinion": negative_opinion
             }
         
         except Exception as e:
-            self.logger.error(f"감정 분석 에러: {str(e)}", exc_info=True)
+            print(f"감정 분석 에러: {str(e)}")
             return {
                 "positive_opinion": "긍정 의견 분석 실패",
                 "negative_opinion": "부정 의견 분석 실패"

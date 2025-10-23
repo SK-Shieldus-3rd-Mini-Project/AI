@@ -2,6 +2,9 @@
 FastAPI 메인 서버
 모든 체인을 통합하여 Spring Boot와 연동
 """
+from dotenv import load_dotenv
+load_dotenv()
+
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -18,6 +21,8 @@ from chains.rag_chain import query_rag
 from chains.indicator_chain import query_economic_indicator
 from chains.stock_chain import query_stock_analysis
 from chains.general_chain import query_general_advice
+from chains.sentiment_analyzer import SentimentAnalyzer
+sentiment_analyzer = SentimentAnalyzer()
 
 # FastAPI 앱 초기화
 app = FastAPI(
@@ -40,7 +45,7 @@ app.add_middleware(
 class QueryRequest(BaseModel):
     """질문 요청 모델"""
     session_id: str  # 세션 ID (사용자 식별)
-    question: str  # 사용자 질문
+    question: str    # 사용자 질문
 
 class Source(BaseModel):
     """출처 정보 모델"""
@@ -53,6 +58,8 @@ class QueryResponse(BaseModel):
     session_id: str
     question: str
     answer: str
+    positive_opinion: str
+    negative_opinion: str
     category: str  # 질문 카테고리
     sources: List[Dict]  # 출처 리스트
     timestamp: str
@@ -73,33 +80,28 @@ async def health_check():
 async def query_ai(request: QueryRequest):
     """
     AI 질문 처리 메인 엔드포인트
-    
-    흐름:
-    1. 질문 분류
-    2. 카테고리별 처리
-    3. 답변 생성
-    4. 응답 반환
+      1. 질문 분류
+      2. 카테고리별 처리(답변, 출처)
+      3. 긍정/부정 의견 추출
+      4. 응답 반환
     """
     try:
         logger.info(f"[{request.session_id}] 질문 수신: {request.question}")
-        
+
         # 1. 질문 분류
         category = classify_question(request.question)
         logger.info(f"[{request.session_id}] 분류: {category}")
-        
+
         # 2. 카테고리별 처리
         answer = ""
         sources = []
-        
+
         if category == "analyst_report":
-            # RAG 체인 실행
             result = query_rag(request.question)
             answer = result["answer"]
             sources = result["sources"]
-            
+
         elif category == "economic_indicator":
-            # TODO: Spring Boot에서 경제지표 데이터 조회
-            # 임시 더미 데이터
             indicator_data = {
                 "기준금리": "3.5%",
                 "M2 통화량": "3,450조원",
@@ -107,10 +109,8 @@ async def query_ai(request: QueryRequest):
             }
             answer = query_economic_indicator(request.question, indicator_data)
             sources = [{"title": "한국은행 데이터", "source": "DB", "date": "2025-10-21"}]
-            
+
         elif category == "stock_price":
-            # TODO: Yahoo Finance API 연동
-            # 임시 더미 데이터
             stock_data = {
                 "종목": "삼성전자",
                 "현재가": "75,000원",
@@ -119,25 +119,33 @@ async def query_ai(request: QueryRequest):
             }
             answer = query_stock_analysis(request.question, stock_data)
             sources = [{"title": "실시간 주가", "source": "Yahoo Finance", "date": "2025-10-21"}]
-            
+
         else:  # general
-            # 일반 상담
             answer = query_general_advice(request.question)
             sources = []
-        
-        # 3. 응답 생성
+
+        # 3. 긍정/부정 의견 추출
+        context = answer
+        sentiment_result = sentiment_analyzer.analyze(
+            question=request.question,
+            context=context
+        )
+
+        # 4. 응답 반환
         response = QueryResponse(
             session_id=request.session_id,
             question=request.question,
             answer=answer,
+            positive_opinion=sentiment_result['positive_opinion'],
+            negative_opinion=sentiment_result['negative_opinion'],
             category=category,
             sources=sources,
             timestamp=datetime.now().isoformat()
         )
-        
+
         logger.info(f"[{request.session_id}] 응답 생성 완료")
         return response
-        
+
     except Exception as e:
         logger.error(f"[{request.session_id}] 오류 발생: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
