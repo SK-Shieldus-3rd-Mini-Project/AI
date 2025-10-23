@@ -23,7 +23,8 @@ from chains.stock_chain import query_stock_analysis
 from chains.general_chain import query_general_advice
 from chains.sentiment_analyzer import SentimentAnalyzer
 sentiment_analyzer = SentimentAnalyzer()
-
+from chains.user_stocks_chain import UserStocksChain
+user_stocks_chain = UserStocksChain()
 # FastAPI 앱 초기화
 app = FastAPI(
     title="전봉준 AI 투자 어드바이저 API",
@@ -75,6 +76,20 @@ async def health_check():
         "version": "1.0.0",
         "timestamp": datetime.now().isoformat()
     }
+@app.post("/api/ai/my-stocks")
+async def get_my_stocks(request: dict):
+    """
+    사용자 최근 추가 종목 + 상세정보 조회 API
+    """
+    user_id = request.get("user_id", "default_user")
+    
+    result = user_stocks_chain.get_user_stocks(user_id)
+    
+    return {
+        "user_id": user_id,
+        "stocks": result["stocks"],
+        "summary": result["summary"]
+    }
 
 @app.post("/api/ai/query", response_model=QueryResponse)
 async def query_ai(request: QueryRequest):
@@ -100,6 +115,11 @@ async def query_ai(request: QueryRequest):
             result = query_rag(request.question)
             answer = result["answer"]
             sources = result["sources"]
+        elif category == "user_stocks":  # 👈 '내 종목', '최근 추가' 등 분류된 경우
+            result = user_stocks_chain.get_user_stocks(request.session_id)
+            answer = result["summary"]
+            stocks = result["stocks"]
+            sources = []
 
         elif category == "economic_indicator":
             indicator_data = {
