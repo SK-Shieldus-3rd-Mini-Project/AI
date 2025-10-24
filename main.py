@@ -7,9 +7,9 @@ load_dotenv()
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from datetime import datetime
-from typing import List, Dict
+from typing import List, Dict, Optional, Any
 
 # 설정 및 유틸
 from utils.config import settings
@@ -23,9 +23,12 @@ from chains.stock_chain import query_stock_analysis
 from chains.general_chain import query_general_advice
 from chains.sentiment_analyzer import SentimentAnalyzer
 from chains.user_stocks_chain import UserStocksChain
+
 # pykrx API 추가
 from pykrx import stock
 import pandas as pd
+import re
+
 
 # 인스턴스 생성
 sentiment_analyzer = SentimentAnalyzer()
@@ -48,7 +51,12 @@ app.add_middleware(
 )
 
 # ===== 요청/응답 모델 =====
-
+class IndicatorData(BaseModel):
+    """백엔드가 전달할 경제 지표 데이터 형식 (최종 확정된 필드)"""
+    name: str # 예: "기준금리"
+    value: str # 예: "3.5%"
+    # date: Optional[str] = None # 필요시 추가
+    # unit: Optional[str] = None # 필요시 추가
 class UserRequest(BaseModel):
     """사용자 정보 요청 모델"""
     user_id: str
