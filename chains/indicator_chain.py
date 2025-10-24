@@ -76,4 +76,4 @@ def query_economic_indicator(question: str, indicator_data: List[Dict[str, Any]]
     })
     
     logger.info("경제지표 답변 생성 완료")
-    return answer``
+    return answer
