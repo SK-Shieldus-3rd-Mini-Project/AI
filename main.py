@@ -178,10 +178,6 @@ def parse_analysis_from_answer(answer_content: str) -> Optional[Dict[str, Any]]:
 
 
 
-
-
-
-
 # ===== API 엔드포인트 =====
 
 @app.get("/health")
@@ -341,7 +337,7 @@ async def query_ai(request: QueryRequest): # 수정된 QueryRequest 사용
 # ===== 서버 실행 (기존 유지) =====
 if __name__ == "__main__":
     import uvicorn
-    logger.info(f"AI Core 서버 시작 (Host: {settings.host}, Port: {settings.port}, Debug: {settings.debug})")
+    logger.info(f"서버 시작 (Host: {settings.host}, Port: {settings.port}, Debug: {settings.debug})")
     uvicorn.run(
         "main:app", # FastAPI 앱 객체 지정 (파일명:앱객체명)
         host=settings.host,
