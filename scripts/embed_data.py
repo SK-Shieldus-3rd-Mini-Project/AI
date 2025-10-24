@@ -22,9 +22,8 @@ def main():
     logger.info("Deep Search API를 통해 증권사 리포트 로딩 시작...")
     all_docs = load_reports_from_deepsearch(
         query="최신 증권사 리포트", # 검색어 예시
-        limit=50 # 가져올 리포트 개수 예시
-        # start_date="2025-10-01", # 필요시 기간 설정
-        # end_date="2025-10-24"
+        limit=100 # 가져올 리포트 개수 예시
+        
     )
 
     if not all_docs:

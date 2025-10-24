@@ -53,10 +53,16 @@ app.add_middleware(
 # ===== 요청/응답 모델 =====
 class IndicatorData(BaseModel):
     """백엔드가 전달할 경제 지표 데이터 형식 (최종 확정된 필드)"""
-    name: str # 예: "기준금리"
-    value: str # 예: "3.5%"
-    # date: Optional[str] = None # 필요시 추가
-    # unit: Optional[str] = None # 필요시 추가
+    name: str 
+    value: str 
+    date: str = None 
+    unit: str = None 
+class StockData(BaseModel):
+    """백엔드가 전달할 주가 데이터 형식"""
+    ticker: str # 종목 코드 
+    current_price: Optional[float] = None # 현재가
+    change_percent: Optional[float] = None # 등락률
+    name: Optional[str] = None # 필요시 종목명 등 추가    
 class UserRequest(BaseModel):
     """사용자 정보 요청 모델"""
     user_id: str
@@ -65,7 +71,27 @@ class QueryRequest(BaseModel):
     """질문 요청 모델"""
     session_id: str  # 세션 ID (사용자 식별)
     question: str    # 사용자 질문
-
+    indicator_data: Optional[List[IndicatorData]] = Field(default=None, alias="indicatorData")
+    stock_data: Optional[StockData] = Field(default=None, alias="stockData")
+    # Pydantic 설정: alias 사용 및 예외 필드 허용 여부 등 설정 가능
+    class Config:
+        populate_by_name = True # alias를 JSON 필드명으로 인식
+    
+    # --- 2. 출력 모델 (스크린샷 + 신규기능 반영, 백엔드 AiResponseDto 와 매핑) ---
+class EconomicDataUsed(BaseModel):
+     """AI 답변에 사용된 경제 데이터"""
+     name: str
+     value: str
+class SourceCitation(BaseModel):
+     """AI 답변의 근거 출처 (뉴스, 웹사이트 등 - RAG 외)"""
+     title: str # 출처 제목 (예: "한국은행 경제통계시스템")
+     url: Optional[str] = None # 출처 URL (있을 경우)
+class RelatedReport(BaseModel):
+     """RAG 검색 결과로 나온 관련 리포트 정보"""
+     # rag_chain.py에서 반환하는 source dict의 키와 일치시키는 것이 좋음
+     title: str # 리포트 제목
+     securities_firm: Optional[str] = None # 증권사
+     date: Optional[str] = None # 리포트 날짜     
 class Source(BaseModel):
     """출처 정보 모델"""
     title: str
