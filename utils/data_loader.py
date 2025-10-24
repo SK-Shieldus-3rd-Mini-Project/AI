@@ -4,7 +4,7 @@ PDF, CSV, JSON 등 다양한 형식의 문서를 LangChain 형식으로 로드
 """
 from langchain_community.document_loaders import PyPDFLoader, CSVLoader
 from langchain_core.documents import Document
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 import json
 import requests
 from utils.logger import logger
@@ -105,22 +105,23 @@ def load_reports_from_deepsearch(
         "Authorization": f"Bearer {api_key}", # Bearer 토큰 인증
         "Accept": "application/json"
     }
-
-
-    # 요청 파라미터 구성 (실제 API 규격에 맞게 수정)
-    params = {
-        "query": query,
-        "document_type": "analyst_report", # 리포트 타입 지정 (가정)
-        "limit": limit,
+    params: Dict[str, Any] = {
+        "query": query, # 검색어
+        "limit": limit, # 결과 개수
+    
+        "filter": "document_type:리포트 AND provider_category:증권", 
+    
+        "fields": "id,title,abstract_ko,content_ko,provider_name,published_date" 
     }
+    # 기간 파라미터 추가 (실제 파라미터 이름 확인 필요)
     if start_date:
-        params["start_date"] = start_date
+        params["start_date"] = start_date # 예: start_date=2024-01-01
     if end_date:
-        params["end_date"] = end_date
+        params["end_date"] = end_date   # 예: end_date=2024-10-24
 
-    logger.info(f"Deep Search API 호출 시작: {query} (limit: {limit})")
+    logger.info(f"Deep Search 문서 검색 API 호출 시작: URL='{api_url}', Params={params}")
 
-    documents = []
+    documents = [] # 결과를 담을 리스트 초기화
     try:
         # API 호출 (GET 요청 예시, POST일 수도 있음)
         response = requests.get(api_url, headers=headers, params=params, timeout=30) # timeout 설정
@@ -128,7 +129,7 @@ def load_reports_from_deepsearch(
         data = response.json()
 
         # --- 응답 데이터 처리 (실제 응답 구조에 맞게 수정) ---
-        # 예시: 응답이 {'reports': [{'title': '...', 'content': '...', 'metadata': {...}}]} 형태라고 가정
+    
         report_list = data.get("reports", [])
         logger.info(f"Deep Search API 응답 수신: {len(report_list)}개 리포트")
 
