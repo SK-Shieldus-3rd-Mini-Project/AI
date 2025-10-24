@@ -3,7 +3,8 @@
 .env 파일의 환경변수를 읽어서 애플리케이션 전체에서 사용
 """
 from pydantic_settings import BaseSettings
-
+from pathlib import Path
+BASE_DIR = Path(__file__).resolve().parent.parent
 class Settings(BaseSettings):
     """환경 설정 클래스"""
     
@@ -22,7 +23,9 @@ class Settings(BaseSettings):
     # 로깅 설정
     log_level: str = "INFO"  # 로그 레벨
     log_file: str = "./logs/app.log"  # 로그 파일 경로
-    
+
+    # --- Deep Search API 설정 추가 ---
+    deepsearch_api_key: str = None
     # 임베딩 설정
     embedding_model: str = "text-embedding-3-small"  # OpenAI 임베딩 모델
     chunk_size: int = 500  # 텍스트 청킹 크기 (토큰 단위)
