@@ -4,7 +4,7 @@ PDF, CSV, JSON 등 다양한 형식의 문서를 LangChain 형식으로 로드
 """
 from langchain_community.document_loaders import PyPDFLoader, CSVLoader
 from langchain_core.documents import Document
-from typing import List
+from typing import List, Optional
 import json
 import requests
 from utils.logger import logger
@@ -69,35 +69,43 @@ def load_json(file_path: str) -> List[Document]:
     return documents
 
 def load_reports_from_deepsearch(
-    query: str = "증권사 리포트", # 검색어 (필요시 조정)
-    start_date: str = None, # 검색 시작일 (YYYY-MM-DD 형식)
-    end_date: str = None, # 검색 종료일 (YYYY-MM-DD 형식)
-    limit: int = 10 # 가져올 리포트 개수 제한
+    query: str = '"증권사 리포트" AND ("투자 의견" OR "목표 주가")', # 리포트 관련성 높은 검색어 예시
+    start_date: Optional[str] = None, # 검색 시작일 (YYYY-MM-DD)
+    end_date: Optional[str] = None, # 검색 종료일 (YYYY-MM-DD)
+    limit: int = 50 # 가져올 문서 개수 (API 제한 및 비용 고려)
 ) -> List[Document]:
     """
-    Deep Search API를 사용하여 증권사 리포트 검색 및 내용을 Document 리스트로 반환
-    (주의: 실제 Deep Search API 엔드포인트 및 파라미터 확인 필요!)
+    Deep Search 문서 검색 API(/v1/search/documents)를 사용하여 증권사 리포트를 검색하고
+    LangChain Document 객체 리스트로 반환합니다.
+
+    **주의:** API 엔드포인트, 파라미터, 응답 구조는 Deep Search 문서를 참조하여
+           정확하게 확인 후 필요시 수정해야 합니다.
 
     Args:
-        query: 검색어
-        start_date: 검색 시작일
-        end_date: 검색 종료일
-        limit: 최대 결과 개수
+        query (str): 검색어 (Deep Search 검색 문법 사용 가능).
+        start_date (Optional[str]): 검색 시작일 (YYYY-MM-DD).
+        end_date (Optional[str]): 검색 종료일 (YYYY-MM-DD).
+        limit (int): 가져올 최대 문서 개수.
 
     Returns:
-        Document 객체 리스트 (각 리포트가 하나의 Document)
+        List[Document]: 각 리포트 내용과 메타데이터를 담은 Document 객체 리스트.
     """
-    if not settings.deepsearch_api_key:
-        logger.error("Deep Search API 키가 설정되지 않았습니다.")
-        return []
+    api_key = settings.deepsearch_api_key # 설정에서 API 키 로드
+    if not api_key:
+        logger.error("Deep Search API 키가 .env 파일에 설정되지 않았습니다.")
+        return [] # 빈 리스트 반환
 
+    # --- API 엔드포인트 설정 ---
+    base_url = "https://api-v2.deepsearch.com" # 백엔드와 동일한 베이스 URL
+    api_endpoint_path = "/v1/search/documents" # 문서 검색 API 경로
+    api_url = f"{base_url}{api_endpoint_path}" # 최종 URL
 
-    api_url = "deepsearch.api.base-url=https://api-v2.deepsearch.com" 
-
+    # --- API 요청 헤더 ---
     headers = {
-        "Authorization": f"Bearer {settings.deepsearch_api_key}", # API 키 헤더
-        "Content-Type": "application/json"
+        "Authorization": f"Bearer {api_key}", # Bearer 토큰 인증
+        "Accept": "application/json"
     }
+
 
     # 요청 파라미터 구성 (실제 API 규격에 맞게 수정)
     params = {

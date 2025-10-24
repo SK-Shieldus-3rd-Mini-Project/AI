@@ -62,14 +62,14 @@ class StockData(BaseModel):
     ticker: str # 종목 코드 
     current_price: Optional[float] = None # 현재가
     change_percent: Optional[float] = None # 등락률
-    name: Optional[str] = None # 필요시 종목명 등 추가    
+    name: Optional[str] = None # 종목명 등 추가    
 class UserRequest(BaseModel):
     """사용자 정보 요청 모델"""
     user_id: str
 
 class QueryRequest(BaseModel):
     """질문 요청 모델"""
-    session_id: str  # 세션 ID (사용자 식별)
+    session_id: str = Field(..., alias="sessionId")  # 세션 ID (사용자 식별)
     question: str    # 사용자 질문
     indicator_data: Optional[List[IndicatorData]] = Field(default=None, alias="indicatorData")
     stock_data: Optional[StockData] = Field(default=None, alias="stockData")
@@ -91,23 +91,25 @@ class RelatedReport(BaseModel):
      # rag_chain.py에서 반환하는 source dict의 키와 일치시키는 것이 좋음
      title: str # 리포트 제목
      securities_firm: Optional[str] = None # 증권사
-     date: Optional[str] = None # 리포트 날짜     
-class Source(BaseModel):
-    """출처 정보 모델"""
-    title: str
-    securities_firm: str
-    date: str
-
+     date: Optional[str] = None # 리포트 날짜   
+class ResponseDetails(BaseModel):
+     """AI 답변의 상세 정보 구조"""
+     # Field의 alias를 사용하여 Python(snake_case)과 JSON(camelCase) 변환
+     economic_data_used: Optional[List[EconomicDataUsed]] = Field(default=None, alias="economicDataUsed")
+     source_citations: Optional[List[SourceCitation]] = Field(default=None, alias="sourceCitations")
+     related_reports: Optional[List[RelatedReport]] = Field(default=None, alias="relatedReports")
+     # --- 긍정/부정 분석 필드 ---
+     positive_points: Optional[List[str]] = Field(default=None, alias="positivePoints") # 긍정 요인 목록
+     negative_points: Optional[List[str]] = Field(default=None, alias="negativePoints") # 부정 요인 목록
+     suggested_propensity: Optional[str] = Field(default=None, alias="suggestedPropensity") # 추천 투자 성향 (예: "중립적")  
 class QueryResponse(BaseModel):
-    """질문 응답 모델"""
-    session_id: str
-    question: str
-    answer: str
-    positive_opinion: str
-    negative_opinion: str
-    category: str  # 질문 카테고리
-    sources: List[Dict]  # 출처 리스트
-    timestamp: str
+   """질문 응답 모델 (Spring Boot AiResponseDto 와 매핑)"""
+    session_id: str = Field(..., alias="sessionId") # 세션 ID
+    question: str # 원본 사용자 질문
+    answer: str # LLM이 생성한 주 답변 내용 (긍정/부정 분석 포함 가능)
+    category: str # 분류된 질문 카테고리
+    timestamp: str # 응답 생성 시간 (ISO 형식)
+    details: Optional[ResponseDetails] = None # 상세 정보 (내용이 있을 때만 포함)
 
 class StocksResponse(BaseModel):
     """보유 종목 응답 모델"""
