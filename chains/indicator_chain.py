@@ -1,25 +1,30 @@
 """
-경제지표 체인 - DB 데이터 조회 및 LLM 해석
+경제지표 체인 - Spring Boot DB 데이터 조회 및 LLM 해석
 """
 from langchain_openai import ChatOpenAI
 from langchain.prompts import PromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from utils.config import settings
 from utils.logger import logger
+from utils.spring_client import spring_client
 
-def query_economic_indicator(question: str, indicator_data: dict):
+async def query_economic_indicator(question: str):
     """
-    경제지표 데이터를 기반으로 질문에 답변
+    경제지표 데이터를 기반으로 질문에 답변 (비동기)
     
     Args:
         question: 사용자 질문
-        indicator_data: DB에서 조회한 경제지표 데이터
-            예: {"interest_rate": 3.5, "m2": 3450, "exchange_rate": 1320}
     
     Returns:
         답변 문자열
     """
     logger.info(f"경제지표 질의: {question}")
+    
+    # ★ Spring Boot에서 MariaDB 경제지표 데이터 조회
+    indicator_data = await spring_client.get_economic_indicators()
+    
+    if not indicator_data:
+        return "죄송합니다. 경제지표 데이터를 조회할 수 없습니다."
     
     # LLM 초기화
     llm = ChatOpenAI(
@@ -28,7 +33,7 @@ def query_economic_indicator(question: str, indicator_data: dict):
         openai_api_key=settings.openai_api_key
     )
     
-    # 프롬프트 템플릿
+    # ★ 프롬프트: 경제지표 데이터를 컨텍스트로 제공
     prompt = PromptTemplate(
         input_variables=["question", "indicators"],
         template="""
@@ -52,7 +57,7 @@ def query_economic_indicator(question: str, indicator_data: dict):
     # 체인 구성
     chain = prompt | llm | StrOutputParser()
     
-    # 경제지표를 문자열로 변환
+    # ★ 경제지표를 문자열로 변환
     indicators_str = "\n".join([f"- {k}: {v}" for k, v in indicator_data.items()])
     
     # 실행
