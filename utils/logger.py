@@ -1,7 +1,13 @@
 import logging
 from utils.config import settings
+import os
 
 def setup_logger():
+    log_file_path = settings.log_file  
+    log_dir = os.path.dirname(log_file_path)
+    if not os.path.exists(log_dir):
+        os.makedirs(log_dir)
+   
     """로깅 설정"""
     logging.basicConfig(
         level=settings.log_level,

@@ -1,5 +1,5 @@
 """
-RAG 체인 - 증권사 리포트 검색 및 답변 생성
+RAG 체인 - 증권사 리포트 검색 및 답변 생성 (실제 구현)
 """
 from langchain.chains import RetrievalQA
 from langchain_openai import ChatOpenAI
@@ -27,14 +27,16 @@ def create_rag_chain(collection_name: str = "analyst_reports"):
         openai_api_key=settings.openai_api_key
     )
     
-    # Vectorstore Retriever (유사도 검색)
+    # ★ ChromaDB에서 Vectorstore 로드 (임베딩된 리포트 문서들)
     vectorstore = get_vectorstore(collection_name=collection_name)
+    
+    # ★ Retriever 생성: 유사도 상위 3개 문서 반환
     retriever = vectorstore.as_retriever(
-        search_type="similarity",  # 유사도 기반 검색
-        search_kwargs={"k": 3}  # 상위 3개 문서 반환
+        search_type="similarity",
+        search_kwargs={"k": 3}  # 관련 문서 3개 검색
     )
     
-    # RAG 프롬프트 (출처 명확히 표시)
+    # ★ RAG 프롬프트: 검색된 문서를 컨텍스트로 제공
     prompt_template = """
 당신은 전문 투자 상담가입니다.
 아래 증권사 리포트를 참고하여 질문에 답변하세요.
@@ -58,7 +60,7 @@ def create_rag_chain(collection_name: str = "analyst_reports"):
         template=prompt_template
     )
     
-    # RAG Chain 생성
+    # ★ RAG Chain 생성: Retriever + LLM
     qa_chain = RetrievalQA.from_chain_type(
         llm=llm,
         chain_type="stuff",  # 모든 문서를 하나의 컨텍스트로 결합
@@ -72,7 +74,7 @@ def create_rag_chain(collection_name: str = "analyst_reports"):
 
 def query_rag(question: str, collection_name: str = "analyst_reports"):
     """
-    RAG 체인 실행
+    RAG 체인 실행 (동기 방식)
     
     Args:
         question: 사용자 질문
@@ -86,14 +88,14 @@ def query_rag(question: str, collection_name: str = "analyst_reports"):
     # RAG 체인 생성
     qa_chain = create_rag_chain(collection_name)
     
-    # 실행
+    # ★ 질의 실행: ChromaDB 검색 → LLM 답변 생성
     result = qa_chain({"query": question})
     
     # 결과 정리
     answer = result["result"]
     source_docs = result["source_documents"]
     
-    # 출처 정리
+    # ★ 출처 정리: 메타데이터에서 증권사, 날짜 등 추출
     sources = []
     for doc in source_docs:
         sources.append({
