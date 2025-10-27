@@ -105,23 +105,38 @@ async def get_dashboard_data():
         raise HTTPException(status_code=500, detail="대시보드 데이터를 가져오는 중 오류가 발생했습니다.")
 
 async def fetch_indices_data():
-    """코스피/코스닥 지수 및 차트 데이터를 조회하는 내부 함수"""
+    """코스피/코스닥 지수 및 '차트용 일주일 데이터'를 안정적으로 조회하는 최종 함수"""
     today_str = datetime.now().strftime('%Y%m%d')
-    start_date = (datetime.now() - timedelta(days=5)).strftime('%Y%m%d')
+    start_date = (datetime.now() - timedelta(days=14)).strftime('%Y%m%d')
     response = {}
+    
     for index_name, index_code in [("kospi", "1001"), ("kosdaq", "2001")]:
         try:
             df_daily = stock.get_index_ohlcv(start_date, today_str, index_code, "d")
-            previous_close = df_daily.iloc[-2]['종가']
-            df_minute = stock.get_index_ohlcv(today_str, today_str, index_code, "m")
-            if df_minute.empty: raise ValueError("분봉 데이터 없음")
-            latest_price = df_minute.iloc[-1]['종가']
-            chart_data = [{'time': time_idx.strftime('%H:%M'), 'value': row['종가']} for time_idx, row in df_minute.iterrows()]
-            latest_info = {"value": round(latest_price, 2), "changeValue": round(latest_price - previous_close, 2), "changeRate": round((latest_price / previous_close - 1) * 100, 2)}
-        except Exception:
-            df_fallback = stock.get_index_ohlcv(start_date, today_str, index_code, "d").tail(1).iloc[0]
+            
+            if df_daily.empty:
+                raise ValueError("일봉 데이터가 없습니다.")
+
+            chart_data = [{'value': row['종가']} for _, row in df_daily.tail(7).iterrows()]
+
+            latest_daily_data = df_daily.iloc[-1]
+
+            latest_info = {
+                "value": round(latest_daily_data['종가'], 2),
+                "changeValue": round(latest_daily_data['변동폭'], 2),
+                "changeRate": round(latest_daily_data['등락률'], 2)
+            }
+            
+        except Exception as e:
+            logger.error(f"지수 데이터 처리 중 예외 발생: {e}")
+            df_fallback = stock.get_index_ohlcv("20240101", today_str, index_code, "d").tail(1).iloc[0]
             chart_data = []
-            latest_info = {"value": round(df_fallback['종가'], 2), "changeRate": round(df_fallback['등락률'], 2)}
+            latest_info = {
+                "value": round(df_fallback['종가'], 2),
+                "changeValue": round(df_fallback['변동폭'], 2), 
+                "changeRate": round(df_fallback['등락률'], 2)
+            }
+
         response[index_name] = {**latest_info, "chartData": chart_data}
     return response
 
