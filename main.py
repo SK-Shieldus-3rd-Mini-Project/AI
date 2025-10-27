@@ -39,7 +39,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# 라우터 등록
 app.include_router(market_data.router, prefix="/ai")
+
 # ===== 요청/응답 모델 =====
 
 class QueryRequest(BaseModel):
@@ -123,27 +125,31 @@ async def query_ai(request: QueryRequest):
                     "securities_firm": "pykrx",
                     "date": datetime.now().strftime("%Y-%m-%d")
                 }]
-            else:  # general
-            # ★ 일반 상담: LLM 직접 답변
+            else:
+                # 종목 코드 없으면 일반 상담으로 처리
                 answer = query_general_advice(request.question)
                 sources = []
+        else:  # general
+            # ★ 일반 상담: LLM 직접 답변
+            answer = query_general_advice(request.question)
+            sources = []
         
         # ★ 빈 답변 검증
-            if not answer or len(answer.strip()) == 0:
-                logger.error(f"[{request.session_id}] 빈 답변 생성됨. Category: {category}")
-                raise HTTPException(status_code=500, detail="답변 생성 실패")
-
-        # ★ 3. 응답 생성
-            response = QueryResponse(
-                session_id=request.session_id,
-                question=request.question,
-                answer=answer,
-                category=category,
-                sources=sources,
-                timestamp=datetime.now().isoformat()
-            )
+        if not answer or len(answer.strip()) == 0:
+            logger.error(f"[{request.session_id}] 빈 답변 생성됨. Category: {category}")
+            raise HTTPException(status_code=500, detail="답변 생성 실패")
         
-            logger.info(f"[{request.session_id}] 응답 생성 완료")
+        # ★ 3. 응답 생성
+        response = QueryResponse(
+            session_id=request.session_id,
+            question=request.question,
+            answer=answer,
+            category=category,
+            sources=sources,
+            timestamp=datetime.now().isoformat()
+        )
+        
+        logger.info(f"[{request.session_id}] 응답 생성 완료")
         return response
         
     except HTTPException:
