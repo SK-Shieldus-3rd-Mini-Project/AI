@@ -125,31 +125,36 @@ async def query_ai(request: QueryRequest):
                     "securities_firm": "pykrx", 
                     "date": datetime.now().strftime("%Y-%m-%d")
                 }]
-            else:
-                answer = "죄송합니다. 종목명을 정확히 인식하지 못했습니다. 다시 한번 말씀해 주세요."
-                sources = []
-            
-        else:  # general
+            else:  # general
             # ★ 일반 상담: LLM 직접 답변
-            answer = query_general_advice(request.question)
-            sources = []
+                answer = query_general_advice(request.question)
+                sources = []
+        
+        # ★ 빈 답변 검증
+            if not answer or len(answer.strip()) == 0:
+                logger.error(f"[{request.session_id}] 빈 답변 생성됨. Category: {category}")
+                raise HTTPException(status_code=500, detail="답변 생성 실패")
         
         # ★ 3. 응답 생성
-        response = QueryResponse(
-            session_id=request.session_id,
-            question=request.question,
-            answer=answer,
-            category=category,
-            sources=sources,
-            timestamp=datetime.now().isoformat()
-        )
+            response = QueryResponse(
+                session_id=request.session_id,
+                question=request.question,
+                answer=answer,
+                category=category,
+                sources=sources,
+                timestamp=datetime.now().isoformat()
+            )
         
-        logger.info(f"[{request.session_id}] 응답 생성 완료")
+            logger.info(f"[{request.session_id}] 응답 생성 완료")
         return response
         
+    except HTTPException:
+        raise  # HTTPException은 그대로 전달
     except Exception as e:
-        logger.error(f"[{request.session_id}] 오류 발생: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"[{request.session_id}] 예상치 못한 오류 발생: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"AI 처리 중 오류: {str(e)}")
+
+요약
 
 # ===== 서버 종료 시 정리 =====
 @app.on_event("shutdown")

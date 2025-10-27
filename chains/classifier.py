@@ -38,10 +38,15 @@ async def classify_question(question: str) -> dict:
 사용자 질문을 아래 4가지 카테고리 중 **정확히 하나**로 분류하세요.
 
 카테고리:
-1. economic_indicator - 기준금리, M2, 환율, GDP 등 경제지표 관련
-2. stock_price - 특정 기업의 주가, 시가총액, 거래량, 재무제표 관련
-3. analyst_report - 증권사 리포트, 애널리스트 의견, 목표주가 관련
-4. general - 일반적인 투자 전략, 조언, 포트폴리오 관련
+1. economic_indicator - 기준금리, M2, 환율, GDP, 시장 상황, 경제 전망 등 **거시경제** 관련
+2. stock_price - **특정 기업명이 명시된** 주가, 시가총액, 거래량, 재무제표 질문
+3. analyst_report - **특정 기업명이 명시된** 증권사 리포트, 애널리스트 의견, 목표주가 질문
+4. general - 투자 전략, 포트폴리오 조언, 투자 용어 설명 등 **일반적인 투자 상담**
+
+**중요한 판단 기준:**
+- "시장 상황", "시장 전망", "경제 상황" 같은 거시적 질문 → economic_indicator
+- 구체적인 기업명(삼성전자, 네이버 등)이 있는 질문 → stock_price 또는 analyst_report
+- 기업명 없이 "투자 방법", "전략" 등을 묻는 질문 → general
 
 질문: {question}
 
@@ -58,6 +63,16 @@ stock: 삼성전자
 질문: "기준금리가 주식에 미치는 영향은?"
 답변:
 category: economic_indicator
+stock: none
+
+질문: "현재 시장 상황은 어때?"
+답변:
+category: economic_indicator
+stock: none
+
+질문: "초보자 투자 전략 알려줘"
+답변:
+category: general
 stock: none
 
 답변:
