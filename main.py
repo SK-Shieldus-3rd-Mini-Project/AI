@@ -40,7 +40,7 @@ app.add_middleware(
 )
 
 # 라우터 등록
-app.include_router(market_data.router)
+app.include_router(market_data.router, prefix="/ai")
 
 # ===== 요청/응답 모델 =====
 
@@ -52,7 +52,7 @@ class QueryRequest(BaseModel):
 class Source(BaseModel):
     """출처 정보 모델"""
     title: str
-    securities_firm: str
+    securities_firm: str = "Unknown"
     date: str
 
 class QueryResponse(BaseModel):
@@ -90,13 +90,13 @@ async def query_ai(request: QueryRequest):
     try:
         logger.info(f"[{request.session_id}] 질문 수신: {request.question}")
         
-        # ★ 1. 질문 분류 (카테고리 + 종목 코드)
-        classification = classify_question(request.question)
+        # ★ 1. 질문 분류 (카테고리 + 종목 코드) - async 지원
+        classification = await classify_question(request.question)
         category = classification["category"]
         stock_code = classification.get("stock_code")
         
         logger.info(f"[{request.session_id}] 분류: {category}, 종목: {stock_code}")
-        
+
         # ★ 2. 카테고리별 처리
         answer = ""
         sources = []
@@ -110,20 +110,34 @@ async def query_ai(request: QueryRequest):
         elif category == "economic_indicator":
             # ★ 경제지표: Spring Boot DB 조회 + LLM 해석
             answer = await query_economic_indicator(request.question)
-            sources = [{"title": "한국은행 경제통계", "source": "MariaDB", "date": datetime.now().strftime("%Y-%m-%d")}]
+            sources = [{
+                "title": "한국은행 경제통계",
+                "securities_firm": "MariaDB",
+                "date": datetime.now().strftime("%Y-%m-%d")
+            }]
             
         elif category == "stock_price":
             # ★ 주가: pykrx API 조회 + LLM 분석
             if stock_code:
                 answer = query_stock_analysis(request.question, stock_code)
-                sources = [{"title": f"실시간 주가 ({stock_code})", "source": "pykrx", "date": datetime.now().strftime("%Y-%m-%d")}]
+                sources = [{
+                    "title": f"실시간 주가 ({stock_code})",
+                    "securities_firm": "pykrx",
+                    "date": datetime.now().strftime("%Y-%m-%d")
+                }]
             else:
-                answer = "죄송합니다. 종목명을 정확히 인식하지 못했습니다. 다시 한번 말씀해 주세요."
-            
+                # 종목 코드 없으면 일반 상담으로 처리
+                answer = query_general_advice(request.question)
+                sources = []
         else:  # general
             # ★ 일반 상담: LLM 직접 답변
             answer = query_general_advice(request.question)
             sources = []
+        
+        # ★ 빈 답변 검증
+        if not answer or len(answer.strip()) == 0:
+            logger.error(f"[{request.session_id}] 빈 답변 생성됨. Category: {category}")
+            raise HTTPException(status_code=500, detail="답변 생성 실패")
         
         # ★ 3. 응답 생성
         response = QueryResponse(
@@ -138,9 +152,13 @@ async def query_ai(request: QueryRequest):
         logger.info(f"[{request.session_id}] 응답 생성 완료")
         return response
         
+    except HTTPException:
+        raise  # HTTPException은 그대로 전달
     except Exception as e:
-        logger.error(f"[{request.session_id}] 오류 발생: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"[{request.session_id}] 예상치 못한 오류 발생: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"AI 처리 중 오류: {str(e)}")
+
+
 
 # ===== 서버 종료 시 정리 =====
 @app.on_event("shutdown")
