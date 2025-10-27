@@ -48,4 +48,4 @@ jobs:
           platforms: linux/amd64,linux/arm64
           tags: |
             ${{ env.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:${{ steps.image_tag.outputs.TAG }}
-            ${{ env.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:latest # Docker Hub 경로 사용
+            ${{ env.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:latest

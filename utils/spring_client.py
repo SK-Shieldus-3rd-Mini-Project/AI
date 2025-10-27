@@ -11,6 +11,7 @@ class SpringBootClient:
     """Spring Boot API 클라이언트"""
     
     def __init__(self, base_url: str = "http://backend-svc:8080"):
+
         """
         초기화
         
@@ -91,3 +92,4 @@ class SpringBootClient:
 # ★ Kubernetes 환경에서는 "http://backend-svc:8080" 사용
 # ★ 로컬 개발 환경에서는 "http://localhost:8080" 사용
 spring_client = SpringBootClient(base_url="http://backend-svc:8080")
+

@@ -15,15 +15,20 @@ spec:
     spec:
       containers:
       - name: ai-service-container
-        # --- [수정] 이미지 경로 ---
-        # Artifact Registry 경로 대신 Docker Hub 경로 사용
-        # !! GitHub Actions가 이 태그 부분을 업데이트하도록 설정 필요 (이전 워크플로우 참고) !!
         image: o11117/ai-service:latest
         ports:
         - containerPort: 8000
-        # AI 서비스에 필요한 환경 변수 (Secret/ConfigMap 참조)는 그대로 유지
-        # env:
-        # - name: OPENAI_API_KEY ...
-      # --- [추가] 비공개 저장소일 경우 imagePullSecrets 추가 ---
-      # imagePullSecrets:
-      # - name: dockerhub-secret
+
+        env:
+          - name: OPENAI_API_KEY
+            valueFrom:
+              secretKeyRef:
+                name: jeonbongjun-secrets
+                key: OPENAI_API_KEY
+        volumeMounts:
+          - name: log-volume
+            mountPath: /app/logs
+
+      volumes:
+        - name: log-volume
+          emptyDir: {}
