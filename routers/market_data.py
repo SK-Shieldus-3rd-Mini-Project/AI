@@ -299,18 +299,16 @@ async def get_stock_detail(ticker: str):
 
 @router.get("/stock/{ticker}/chart")
 async def get_stock_chart(ticker: str):
-    """특정 종목의 최근 1주일간의 종가 데이터"""
+    """특정 종목의 최근 1주일간의 종가 데이터를 차트용으로 반환합니다."""
     try:
         start_date = (datetime.now() - timedelta(days=14)).strftime('%Y%m%d')
         today = datetime.now().strftime('%Y%m%d')
         
-        df = safe_get_ohlcv(start_date, ticker=ticker)
-        
-        if df.empty:
-            return {"chart": []}
+        df = stock.get_market_ohlcv(start_date, today, ticker)
         
         chart_data = df['종가'].tolist()
+        
         return {"chart": chart_data}
     except Exception as e:
-        logger.error(f"종목 차트 조회 실패 ({ticker}): {e}")
+        logger.error(f"종목 차트({ticker}) 조회 중 오류: {e}")
         raise HTTPException(status_code=500, detail=str(e))
