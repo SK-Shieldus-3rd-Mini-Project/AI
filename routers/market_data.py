@@ -4,12 +4,9 @@ from utils.logger import logger
 from pykrx import stock
 import pandas as pd
 import time
-<<<<<<< HEAD
 import asyncio
 from pydantic import BaseModel
 from typing import List
-=======
->>>>>>> 5f6d37969b4abcd37048dd1c95fbe2563b6ef7f6
 
 router = APIRouter(
     prefix="/api",       
@@ -73,11 +70,7 @@ def safe_get_market_cap(date_str, market="ALL"):
 # --- 통합 대시보드 API ---
 @router.get("/dashboard")
 async def get_dashboard_data():
-<<<<<<< HEAD
     """대시보드에 필요한 모든 데이터를 한 번에 조회하여 반환"""
-=======
-    """대시보드에 필요한 모든 데이터를 한 번에 조회"""
->>>>>>> 5f6d37969b4abcd37048dd1c95fbe2563b6ef7f6
     global cached_data
     current_time = time.time()
 
@@ -88,24 +81,13 @@ async def get_dashboard_data():
     try:
         logger.info("🔄 새로운 대시보드 데이터 요청")
         latest_day = get_latest_trading_day_str()
-<<<<<<< HEAD
         df_ohlcv = stock.get_market_ohlcv(latest_day, market="ALL")
-=======
-        logger.info(f"📅 최근 거래일: {latest_day}")
-
-        # ★ 전체 시장 OHLCV 조회
-        df_ohlcv = safe_get_ohlcv(latest_day, market="ALL")
-        if df_ohlcv.empty:
-            logger.error("❌ OHLCV 데이터가 비어있음")
-            raise HTTPException(status_code=500, detail="시장 데이터 조회 실패")
->>>>>>> 5f6d37969b4abcd37048dd1c95fbe2563b6ef7f6
         
         logger.info(f"✅ OHLCV 데이터 {len(df_ohlcv)}개 로드")
 
         # ★ 지수 데이터 (KOSPI, KOSDAQ)
         indices_data = {}
         today_str = datetime.now().strftime('%Y%m%d')
-<<<<<<< HEAD
         start_date = (datetime.now() - timedelta(days=21)).strftime('%Y%m%d')
         
         for index_name, index_code in [("kospi", "1001"), ("kosdaq", "2001")]:
@@ -188,113 +170,6 @@ async def get_dashboard_data():
             for ticker in top_10_tickers if ticker in df_ohlcv.index
         ]
 
-=======
-        start_date = (datetime.now() - timedelta(days=5)).strftime('%Y%m%d')
-        
-        for index_name, index_code in [("kospi", "1001"), ("kosdaq", "2001")]:
-            try:
-                # 일봉 데이터로 전일 종가 가져오기
-                df_daily = stock.get_index_ohlcv(start_date, today_str, index_code, "d")
-                if len(df_daily) < 2:
-                    raise ValueError("일봉 데이터 부족")
-                
-                previous_close = df_daily.iloc[-2]['종가']
-                latest_price = df_daily.iloc[-1]['종가']
-                
-                # 분봉 데이터 시도
-                try:
-                    df_minute = stock.get_index_ohlcv(today_str, today_str, index_code, "m")
-                    if not df_minute.empty:
-                        chart_data = [{'time': time_idx.strftime('%H:%M'), 'value': row['종가']} 
-                                     for time_idx, row in df_minute.iterrows()]
-                    else:
-                        chart_data = []
-                except:
-                    chart_data = []
-                
-                indices_data[index_name] = {
-                    "value": round(latest_price, 2),
-                    "changeValue": round(latest_price - previous_close, 2),
-                    "changeRate": round((latest_price / previous_close - 1) * 100, 2),
-                    "chartData": chart_data
-                }
-                logger.info(f"✅ {index_name} 지수 로드 성공")
-            except Exception as e:
-                logger.error(f"❌ {index_name} 지수 조회 실패: {e}")
-                indices_data[index_name] = {
-                    "value": 0.0,
-                    "changeValue": 0.0,
-                    "changeRate": 0.0,
-                    "chartData": []
-                }
-
-        # ★ 상승률 TOP 5
-        top_gainers = df_ohlcv.nlargest(5, '등락률')
-        top_gainers_data = []
-        for ticker, row in top_gainers.iterrows():
-            try:
-                name = stock.get_market_ticker_name(ticker)
-                top_gainers_data.append({
-                    "code": ticker,
-                    "name": name,
-                    "price": int(row['종가']),
-                    "change_rate": round(row['등락률'], 2)
-                })
-            except Exception as e:
-                logger.warning(f"종목명 조회 실패 ({ticker}): {e}")
-
-        # ★ 하락률 TOP 5
-        top_losers = df_ohlcv.nsmallest(5, '등락률')
-        top_losers_data = []
-        for ticker, row in top_losers.iterrows():
-            try:
-                name = stock.get_market_ticker_name(ticker)
-                top_losers_data.append({
-                    "code": ticker,
-                    "name": name,
-                    "price": int(row['종가']),
-                    "change_rate": round(row['등락률'], 2)
-                })
-            except Exception as e:
-                logger.warning(f"종목명 조회 실패 ({ticker}): {e}")
-
-        # ★ 거래량 TOP 5
-        top_volume = df_ohlcv.nlargest(5, '거래량')
-        top_volume_data = []
-        for ticker, row in top_volume.iterrows():
-            try:
-                name = stock.get_market_ticker_name(ticker)
-                top_volume_data.append({
-                    "code": ticker,
-                    "name": name,
-                    "volume": int(row['거래량'])
-                })
-            except Exception as e:
-                logger.warning(f"종목명 조회 실패 ({ticker}): {e}")
-
-        # ★ 시가총액 TOP 10
-        df_cap = safe_get_market_cap(latest_day, market="ALL")
-        top_market_cap_data = []
-        
-        if not df_cap.empty:
-            top_10_tickers = df_cap.nlargest(10, '시가총액').index.tolist()
-            
-            for ticker in top_10_tickers:
-                if ticker in df_ohlcv.index:
-                    try:
-                        row = df_ohlcv.loc[ticker]
-                        name = stock.get_market_ticker_name(ticker)
-                        top_market_cap_data.append({
-                            "code": ticker,
-                            "name": name,
-                            "price": int(row['종가']),
-                            "change_rate": round(row['등락률'], 2)
-                        })
-                    except Exception as e:
-                        logger.warning(f"시가총액 TOP10 처리 실패 ({ticker}): {e}")
-
-        # ★ 최종 데이터 조합
->>>>>>> 5f6d37969b4abcd37048dd1c95fbe2563b6ef7f6
         dashboard_data = {
             "indices": indices_data,
             "topGainers": top_gainers_data,
@@ -304,7 +179,6 @@ async def get_dashboard_data():
         }
 
         cached_data['dashboard'] = {"data": dashboard_data, "timestamp": current_time}
-<<<<<<< HEAD
         return dashboard_data
         
     except Exception as e:
@@ -355,14 +229,6 @@ async def fetch_top_market_cap_data():
                 "change_rate": round(row['등락률'], 2)
             })
     return result
-=======
-        logger.info("✅ 대시보드 데이터 생성 완료")
-        return dashboard_data
-
-    except Exception as e:
-        logger.error(f"❌ 대시보드 데이터 조회 중 치명적 오류: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"대시보드 데이터 조회 실패: {str(e)}")
->>>>>>> 5f6d37969b4abcd37048dd1c95fbe2563b6ef7f6
 
 class TickersRequest(BaseModel):
     tickers: List[str]
