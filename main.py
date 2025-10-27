@@ -39,9 +39,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# 라우터 등록
-app.include_router(market_data.router)
-
+app.include_router(market_data.router, prefix="/ai")
 # ===== 요청/응답 모델 =====
 
 class QueryRequest(BaseModel):
@@ -96,7 +94,7 @@ async def query_ai(request: QueryRequest):
         stock_code = classification.get("stock_code")
         
         logger.info(f"[{request.session_id}] 분류: {category}, 종목: {stock_code}")
-        
+
         # ★ 2. 카테고리별 처리
         answer = ""
         sources = []
@@ -111,8 +109,8 @@ async def query_ai(request: QueryRequest):
             # ★ 경제지표: Spring Boot DB 조회 + LLM 해석
             answer = await query_economic_indicator(request.question)
             sources = [{
-                "title": "한국은행 경제통계", 
-                "securities_firm": "MariaDB", 
+                "title": "한국은행 경제통계",
+                "securities_firm": "MariaDB",
                 "date": datetime.now().strftime("%Y-%m-%d")
             }]
             
@@ -121,8 +119,8 @@ async def query_ai(request: QueryRequest):
             if stock_code:
                 answer = query_stock_analysis(request.question, stock_code)
                 sources = [{
-                    "title": f"실시간 주가 ({stock_code})", 
-                    "securities_firm": "pykrx", 
+                    "title": f"실시간 주가 ({stock_code})",
+                    "securities_firm": "pykrx",
                     "date": datetime.now().strftime("%Y-%m-%d")
                 }]
             else:  # general
@@ -134,7 +132,7 @@ async def query_ai(request: QueryRequest):
             if not answer or len(answer.strip()) == 0:
                 logger.error(f"[{request.session_id}] 빈 답변 생성됨. Category: {category}")
                 raise HTTPException(status_code=500, detail="답변 생성 실패")
-        
+
         # ★ 3. 응답 생성
             response = QueryResponse(
                 session_id=request.session_id,
