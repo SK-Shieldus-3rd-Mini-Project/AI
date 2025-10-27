@@ -4,7 +4,8 @@ metadata:
   name: ai-svc # Backend에서 이 이름으로 AI Service에 접속
   namespace: jeonbongjun
   annotations:
-    cloud.google.com/neg: '{"ingress": true}' # GKE Ingress용 네트워크 엔드포인트 그룹 활성화
+    cloud.google.com/neg: '{"ingress": true}'
+    cloud.google.com/backend-config: '{"default": "ai-health-config"}'
 spec:
   selector:
     app: ai-service

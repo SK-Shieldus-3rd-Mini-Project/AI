@@ -24,7 +24,7 @@ spec:
           httpGet:
             path: /health  # main.py의 /health 엔드포인트
             port: 8000     # ai-svc 포트
-          initialDelaySeconds: 15 # 팟 시작 후 15초 뒤 검사 시작
+          initialDelaySeconds: 30 # 팟 시작 후 15초 뒤 검사 시작
           periodSeconds: 10     # 10초마다 검사
 
         env:
