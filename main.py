@@ -154,7 +154,7 @@ async def query_ai(request: QueryRequest):
         logger.error(f"[{request.session_id}] 예상치 못한 오류 발생: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"AI 처리 중 오류: {str(e)}")
 
-요약
+
 
 # ===== 서버 종료 시 정리 =====
 @app.on_event("shutdown")
