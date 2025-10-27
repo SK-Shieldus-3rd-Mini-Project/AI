@@ -52,7 +52,7 @@ class QueryRequest(BaseModel):
 class Source(BaseModel):
     """출처 정보 모델"""
     title: str
-    securities_firm: str
+    securities_firm: str = "Unknown"
     date: str
 
 class QueryResponse(BaseModel):
@@ -90,8 +90,8 @@ async def query_ai(request: QueryRequest):
     try:
         logger.info(f"[{request.session_id}] 질문 수신: {request.question}")
         
-        # ★ 1. 질문 분류 (카테고리 + 종목 코드)
-        classification = classify_question(request.question)
+        # ★ 1. 질문 분류 (카테고리 + 종목 코드) - async 지원
+        classification = await classify_question(request.question)
         category = classification["category"]
         stock_code = classification.get("stock_code")
         
@@ -110,15 +110,24 @@ async def query_ai(request: QueryRequest):
         elif category == "economic_indicator":
             # ★ 경제지표: Spring Boot DB 조회 + LLM 해석
             answer = await query_economic_indicator(request.question)
-            sources = [{"title": "한국은행 경제통계", "source": "MariaDB", "date": datetime.now().strftime("%Y-%m-%d")}]
+            sources = [{
+                "title": "한국은행 경제통계", 
+                "securities_firm": "MariaDB", 
+                "date": datetime.now().strftime("%Y-%m-%d")
+            }]
             
         elif category == "stock_price":
             # ★ 주가: pykrx API 조회 + LLM 분석
             if stock_code:
                 answer = query_stock_analysis(request.question, stock_code)
-                sources = [{"title": f"실시간 주가 ({stock_code})", "source": "pykrx", "date": datetime.now().strftime("%Y-%m-%d")}]
+                sources = [{
+                    "title": f"실시간 주가 ({stock_code})", 
+                    "securities_firm": "pykrx", 
+                    "date": datetime.now().strftime("%Y-%m-%d")
+                }]
             else:
                 answer = "죄송합니다. 종목명을 정확히 인식하지 못했습니다. 다시 한번 말씀해 주세요."
+                sources = []
             
         else:  # general
             # ★ 일반 상담: LLM 직접 답변

@@ -7,9 +7,11 @@ from langchain.prompts import PromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from utils.config import settings
 from utils.logger import logger
+from utils.spring_client import spring_client
 import re
+import asyncio
 
-def classify_question(question: str) -> dict:
+async def classify_question(question: str) -> dict:
     """
     사용자 질문을 카테고리로 분류하고 필요 시 종목 코드 추출
     
@@ -45,7 +47,7 @@ def classify_question(question: str) -> dict:
 
 답변 형식: 
 category: 카테고리명
-stock: 종목명 (stock_price인 경우만, 없으면 none)
+stock: 종목명 (stock_price 또는 analyst_report인 경우만, 없으면 none)
 
 예시:
 질문: "삼성전자 주가가 얼마야?"
@@ -75,10 +77,10 @@ stock: none
     category = category_match.group(1) if category_match else "general"
     stock_name = stock_match.group(1).strip() if stock_match else "none"
     
-    # ★ 종목명 → 종목 코드 변환 (간단한 매핑, 실제로는 DB 조회)
+    # ★ 종목명 → 종목 코드 변환 (Spring Boot DB 조회)
     stock_code = None
     if stock_name != "none":
-        stock_code = get_stock_code(stock_name)
+        stock_code = await get_stock_code(stock_name)
     
     result_dict = {
         "category": category,
@@ -88,24 +90,32 @@ stock: none
     logger.info(f"분류 결과: {result_dict}")
     return result_dict
 
-def get_stock_code(stock_name: str) -> str:
+async def get_stock_code(stock_name: str) -> str:
     """
-    종목명 → 종목 코드 변환 (간단한 예시)
-    실제로는 Spring Boot의 Stock 테이블 조회 권장
+    종목명 → 종목 코드 변환 (Spring Boot DB 조회)
     
     Args:
         stock_name: 종목명
     
     Returns:
-        종목 코드 (6자리)
+        종목 코드 (6자리) 또는 None
     """
-    # ★ 주요 종목 매핑 (예시)
+    # ★ Spring Boot의 Stock 테이블 조회
+    stock_code = await spring_client.get_stock_code_from_name(stock_name)
+    
+    if stock_code:
+        return stock_code
+    
+    # ★ Fallback: 주요 종목 하드코딩 (DB 조회 실패 시)
     stock_map = {
         "삼성전자": "005930",
         "네이버": "035420",
         "현대차": "005380",
         "SK하이닉스": "000660",
-        "카카오": "035720"
+        "카카오": "035720",
+        "LG에너지솔루션": "373220",
+        "삼성바이오로직스": "207940",
+        "POSCO홀딩스": "005490"
     }
     
     return stock_map.get(stock_name, None)
